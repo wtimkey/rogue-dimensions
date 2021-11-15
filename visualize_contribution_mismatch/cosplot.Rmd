@@ -1,0 +1,205 @@
+---
+title: "Visualize cosine contribution mismatch"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(repr)
+
+#render plots for figure 1 (layer 12), as well as for layers 9-11
+for (model in c('gpt2', 'xlnet-base-cased', 'bert-base-cased', 'bert-base-uncased', 'roberta-base')){
+  for (layer in 9:12){
+    model.csv = read.csv(paste('csv_data/', model, '_', layer, '.csv', sep=""))
+    dims = nrow(model.csv)
+    model.cos = unlist(model.csv[1])
+    model.klds = unlist(model.csv[2])
+    model.val = c(rep(model.klds,2), rep(model.cos,2))
+    model.dims = as.character(rep(1:dims, 4))
+    model.dist = c(rep(c(0), dims), rep(c(1), dims), rep(c(2), dims), rep(c(3), dims))
+    
+    cbPalette <- rep(c("#8dd3c7",
+    "#ffffb3",
+    "#ccebc5",
+    "#bebada",
+    "#fccde5",
+    "#fb8072",
+    "#fdb462",
+    "#80b1d3",
+    "#b3de69",
+    "#bc80bd",
+    "#d9d9d9",
+    "#fccde5",
+    "#ffed6f"),100)
+    
+    
+    model.df = data.frame(model.dist, model.dims, model.val)
+    options(repr.plot.width = 6, repr.plot.height = 2.1)
+    #model.df = data.frame(model.cos, model.klds, row.names = c('cos', 'kld'))
+    p <- ggplot(model.df, aes(x=model.dist, y=model.val, fill=model.dims)) + 
+        geom_area() + 
+        geom_vline(aes(xintercept = 1), linetype="dashed", size=1)+
+        geom_vline(aes(xintercept = 2), linetype="dashed", size=1)+
+      
+        geom_vline(aes(xintercept = 0), size=1)+
+        geom_vline(aes(xintercept = 3), size=1)+
+      
+        geom_hline(aes(yintercept = 0), size=1)+
+        geom_hline(aes(yintercept = 1), size=1)+
+      
+        scale_fill_manual(values=cbPalette)+ 
+        theme(legend.position="none")+ coord_flip(clip='off') + 
+        ggtitle(paste(model, 'layer #', layer)) +
+        scale_x_continuous(breaks = c(0.5, 1.5, 2.5),
+        labels = c('Model\nBehavior', '↕   ', 'Cosine\nSimilarity'), expand = c(0,0))+
+        scale_y_continuous(expand=c(0,0))+
+        theme(plot.title = element_text(size=22, hjust = -.05, vjust=2.4),
+              axis.text.x = element_text(size=14),
+            axis.text.y =  element_text(size=c(15,26,15)),
+            axis.title.y=element_blank(),
+            axis.title.x = element_text(size=15))+
+        labs(x='', y='Proportion by dimension')
+   
+    
+    print(p)
+    ggsave(
+    paste('img/',model, "_", layer,'.png', sep=""),
+    width = 8,
+    height = 3)
+    }
+}
+```
+
+```{r}
+#visualize only cosine contributions (post-hoc hack for consistency with previous plot)
+library(ggplot2)
+library(hrbrthemes)
+library(dplyr)
+library(tidyr)
+library(viridis)
+library(repr)
+
+for (model in c('gpt2', 'xlnet-base-cased', 'bert-base-cased', 'bert-base-uncased', 'roberta-base')){
+  for (layer in c(12)){
+    model.csv = read.csv(paste('csv_data/', model, '_', layer, '.csv', sep=""))
+    dims = nrow(model.csv)
+    model.cos = unlist(model.csv[1])
+    model.klds = model.cos
+    model.val = c(rep(model.klds,2), rep(model.cos,2))
+    model.dims = as.character(rep(1:dims, 4))
+    model.dist = c(rep(c(0), dims), rep(c(1), dims), rep(c(2), dims), rep(c(3), dims))
+    
+    cbPalette <- rep(c("#8dd3c7",
+    "#ffffb3",
+    "#ccebc5",
+    "#bebada",
+    "#fccde5",
+    "#fb8072",
+    "#fdb462",
+    "#80b1d3",
+    "#b3de69",
+    "#bc80bd",
+    "#d9d9d9",
+    "#fccde5",
+    "#ffed6f"),100)
+    
+    
+    model.df = data.frame(model.dist, model.dims, model.val)
+    options(repr.plot.width = 6, repr.plot.height = 2.1)
+    #model.df = data.frame(model.cos, model.klds, row.names = c('cos', 'kld'))
+    p <- ggplot(model.df, aes(x=model.dist, y=model.val, fill=model.dims)) + 
+        geom_area()+
+      
+        geom_vline(aes(xintercept = 0), size=1)+
+        geom_vline(aes(xintercept = 3), size=1)+
+      
+        geom_hline(aes(yintercept = 0), size=1)+
+        geom_hline(aes(yintercept = 1), size=1)+
+      
+        scale_fill_manual(values=cbPalette)+ 
+        scale_y_continuous(expand=c(0,0),breaks = c(0,3),
+        labels = c('','')) +
+        scale_x_continuous(expand=c(0,0),breaks = c(0,1),
+        labels = c('','')) +
+        theme(legend.position="none")+ coord_flip(clip='off') + 
+        ggtitle(paste(model, 'layer #', layer)) +
+        theme(plot.title = element_text(size=22, hjust = -.05, vjust=2.4),
+            axis.title.y=element_blank(),
+            axis.ticks = element_blank())+
+        labs(x='', y='Cosine similarity by dimension')
+   
+    
+    print(p)
+    ggsave(
+    paste('img/',model, "_", layer,'.png', sep=""),
+    width = 8,
+    height = 2)
+    }
+}
+```
+
+
+```{r}
+#cosine contribution only, for static baselines
+for (model in c('Glove', 'Word2Vec')){
+    model.csv = read.csv(paste('csv_data/', model, '.csv', sep=""))
+    dims = nrow(model.csv)
+    model.cos = unlist(model.csv[1])
+    model.klds = model.cos
+    model.val = c(rep(model.klds,2), rep(model.cos,2))
+    model.dims = as.character(rep(1:dims, 4))
+    model.dist = c(rep(c(0), dims), rep(c(1), dims), rep(c(2), dims), rep(c(3), dims))
+    
+    cbPalette <- rep(c("#8dd3c7",
+    "#ffffb3",
+    "#ccebc5",
+    "#bebada",
+    "#fccde5",
+    "#fb8072",
+    "#fdb462",
+    "#80b1d3",
+    "#b3de69",
+    "#bc80bd",
+    "#d9d9d9",
+    "#fccde5",
+    "#ffed6f"),100)
+    
+    
+    model.df = data.frame(model.dist, model.dims, model.val)
+    options(repr.plot.width = 6, repr.plot.height = 2.1)
+    #model.df = data.frame(model.cos, model.klds, row.names = c('cos', 'kld'))
+    p <- ggplot(model.df, aes(x=model.dist, y=model.val, fill=model.dims)) + 
+        geom_area()+
+      
+        geom_vline(aes(xintercept = 0), size=1)+
+        geom_vline(aes(xintercept = 3), size=1)+
+      
+        geom_hline(aes(yintercept = 0), size=1)+
+        geom_hline(aes(yintercept = 1), size=1)+
+      
+        scale_fill_manual(values=cbPalette)+ 
+        scale_y_continuous(expand=c(0,0),breaks = c(0,3),
+        labels = c('','')) +
+        scale_x_continuous(expand=c(0,0),breaks = c(0,1),
+        labels = c('','')) +
+        theme(legend.position="none")+ coord_flip(clip='off') + 
+        ggtitle(paste(model, 'layer #', layer)) +
+        theme(plot.title = element_text(size=22, hjust = -.05, vjust=2.4),
+            axis.title.y=element_blank(),
+            axis.ticks.x=element_blank(),
+            axis.ticks.y=element_blank())+
+        labs(x='', y='Cosine similarity by dimension')
+   
+    
+    print(p)
+    ggsave(
+    paste('img/',model, "_", layer,'.png', sep=""),
+    width = 8,
+    height = 2)
+}
+```
+
